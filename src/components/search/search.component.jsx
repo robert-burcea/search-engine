@@ -11,18 +11,12 @@ import {
 } from '../../state/query.slice';
 import { getAllJobs, getTotalRomania } from '../../utils/get-data';
 import { updateAllJobs, updateTotalRomania } from '../../state/jobs.slice';
-import { counties } from './cityandcounty';
 import {
   searchLocation,
   searchMunicipiu,
   removeDuplicates
 } from '../../utils/advanced-search';
 import { v4 as uuidv4 } from 'uuid';
-
-// Transform counties object to array
-const counties_list = counties.map((county) => {
-  return Object.keys(county)[0];
-});
 
 export const Search = (props) => {
   // Props
@@ -33,37 +27,21 @@ export const Search = (props) => {
   const dispatch = useDispatch();
   const q = useSelector((state) => state.query.q);
   const country = useSelector((state) => state.query.country);
-  const county = useSelector((state) => state.query.county);
 
   // States
-  const [countiesList, setCountiesList] = React.useState([counties_list]);
-  const [citiesList, setCitiesList] = React.useState([]);
-  const [advancedSearchQuerry, setAdvancedSearchQuerry] = React.useState('');
   const [data, setData] = React.useState([]);
   const [uniqueResults, setUniqueResults] = React.useState([]);
   const [selectedLocation, setSelectedLocation] = React.useState('');
 
   React.useEffect(() => {
-    if (country === 'România') {
-      setCountiesList(counties_list);
-    } else {
-      setCountiesList(['Toate']);
-    }
-  }, [country]);
-
-  React.useEffect(() => {
-    if (county) {
-      setCitiesList([]);
-      counties.forEach((c) => {
-        if (Object.keys(c)[0] === county) {
-          setCitiesList(c[county]);
-        }
-      });
-    }
-  }, [county]);
-
-  React.useEffect(() => {
     getData();
+  }, []);
+
+  React.useEffect(() => {
+    if (queries.county) {
+      setInputs(2);
+      setSelectedLocation(`${queries.city}, ${queries.county}`);
+    }
   }, []);
 
   // Functions
@@ -141,7 +119,6 @@ export const Search = (props) => {
     try {
       const response = await fetch(`https://orase.peviitor.ro/`);
       const data = await response.json();
-      console.log(data.judet);
       setData(data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -153,24 +130,38 @@ export const Search = (props) => {
   };
 
   const handleLiClick = (e) => {
-    // searchInput.innerHTML = "";
     const selectedLocationId = e.target.id;
-    console.log('Id-ul locatiei:', selectedLocationId);
     const selectedLocation = uniqueResults.find(
       (result) => result.id === selectedLocationId
     );
-    console.log('State selectedLocation:', selectedLocation);
-    console.log('Locatia selectata:', selectedLocation);
-    console.log('Judet:', removeAccents(selectedLocation?.judet));
-    console.log('Localitate:', removeAccents(selectedLocation?.parent));
-    if (selectedLocation.judet === null && selectedLocation.parent === null) {
+    if (selectedLocation.judet === null) {
+      // If it's the capital of the county
       dispatch(updateCounty(removeAccents(selectedLocation?.query)));
-      setSelectedLocation(selectedLocation.query);
+      dispatch(updatCity(removeAccents(selectedLocation?.query)));
+      setSelectedLocation(
+        `${selectedLocation.query}, ${selectedLocation.query}`
+      );
+    } else if (selectedLocation.bucuresti) {
+      if (selectedLocation.hasOwnProperty('parent')) {
+        // If it's one of the 6 sectors of Bucharest
+        dispatch(updateCounty(removeAccents(selectedLocation?.parent)));
+        dispatch(updatCity(removeAccents(selectedLocation?.query)));
+        setSelectedLocation(
+          `${selectedLocation.query}, ${selectedLocation.parent}`
+        );
+      } else {
+        // If the selected location is Bucharest and it doesn't have a parent
+        dispatch(updateCounty(removeAccents(selectedLocation?.query)));
+        dispatch(updatCity(removeAccents(selectedLocation?.query)));
+        setSelectedLocation(
+          `${selectedLocation.query}, ${selectedLocation.query}`
+        );
+      }
     } else {
       dispatch(updateCounty(removeAccents(selectedLocation?.judet)));
       dispatch(updatCity(removeAccents(selectedLocation?.parent)));
       setSelectedLocation(
-        `${selectedLocation.query}, ${selectedLocation.judet} ${selectedLocation.parent}`
+        `${selectedLocation.query}, ${selectedLocation.judet} (${selectedLocation.parent})`
       );
     }
   };
@@ -179,8 +170,7 @@ export const Search = (props) => {
     setSelectedLocation(e.target.value);
     // Start the search after at least 3 letters
     if (e.target.value.length >= 3) {
-      setAdvancedSearchQuerry(e.target.value);
-      const searchResult = searchLocation(advancedSearchQuerry, data.judet);
+      const searchResult = searchLocation(e.target.value, data.judet);
       const searchResultBucuresti = searchMunicipiu(
         e.target.value,
         data.municipiu
@@ -188,25 +178,28 @@ export const Search = (props) => {
       // Check if there are any matching results
       if (searchResult || searchResultBucuresti) {
         const uniqueResults = removeDuplicates(searchResult);
+        if (searchResultBucuresti) {
+          // Assign unique identifier for Bucharest
+          searchResultBucuresti.forEach((result) => {
+            result.bucuresti = true;
+            if (!result.hasOwnProperty('parent')) {
+              result.parent = 'BUCUREȘTI';
+            }
+          });
+          uniqueResults.push(...searchResultBucuresti);
+        }
         uniqueResults.forEach((result) => {
           result.id = uuidv4();
         });
-        if (searchResultBucuresti) uniqueResults.push(...searchResultBucuresti);
         setUniqueResults(uniqueResults);
-        // displayResults(uniqueResults, searchResultBucuresti);
-      } else {
-        // displayResults([]);
       }
     } else {
       // Display a message when less than 3 letters are entered
-      // searchResultsContainer.classList.add('searchResults-display');
-      // searchResultsContainer.innerHTML =
-      // '<p>Introdu minim 3 litere ca sa poata functiona searchul</p>';
     }
     // Clear results when the search input is empty
     if (e.target.value.length < 1) {
-      // searchResultsContainer.classList.remove('searchResults-display');
-      // searchResultsContainer.innerHTML = '';
+      setSelectedLocation('');
+      setUniqueResults([]);
     }
   };
 
@@ -262,7 +255,11 @@ export const Search = (props) => {
                 id="country"
                 placeholder="Țara"
                 autoComplete="off"
-                value={country}
+                value={
+                  queries.county || queries.city
+                    ? queries.city + ', ' + queries.county
+                    : country
+                }
                 onChange={updateCountrySearch}
                 onClick={handleClickInput}
               />
@@ -305,7 +302,7 @@ export const Search = (props) => {
                 value={'' || selectedLocation}
                 className="searchInp"
                 type="text"
-                placeholder="Județul"
+                placeholder="Tastează locația"
                 autoComplete="off"
                 onChange={onChangeInput}
                 onClick={handleClickInput}
@@ -320,7 +317,12 @@ export const Search = (props) => {
                 {uniqueResults?.map((result, index) => {
                   return (
                     <li key={index} id={result.id} onClick={handleLiClick}>
-                      {result?.query}, {result?.judet} {result?.parent}
+                      {result?.query},{' '}
+                      {result.judet
+                        ? result.judet + ' (' + result.parent + ')'
+                        : result.bucuresti
+                        ? result.parent
+                        : result.query}
                     </li>
                   );
                 })}
@@ -332,6 +334,7 @@ export const Search = (props) => {
                   dispatch(updateCountry(''));
                   dispatch(updateCounty(''));
                   dispatch(updatCity(''));
+                  setSelectedLocation('');
                   setInputs(1);
                 }}
               >

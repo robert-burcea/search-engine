@@ -30,7 +30,6 @@ function searchMunicipiu(query, locations) {
       });
     }
   }
-  console.log('Results Bucuresti:', matchingLocations);
   return matchingLocations.length > 0 ? matchingLocations : null;
 }
 
@@ -278,7 +277,6 @@ function removeDuplicates(results) {
       }
     }
   }
-  console.log('Unique Results:', uniqueResults);
   return uniqueResults;
 }
 
