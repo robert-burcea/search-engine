@@ -182,16 +182,26 @@ export const Search = (props) => {
     }
   }
 
+  const removeAccents = (str) => {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
   const handleLiClick = (e) => {
     // searchInput.innerHTML = "";
     const selectedLocationId = e.target.id;
     console.log('Id-ul locatiei:', selectedLocationId);
-    const selectedLocation = uniqueResults.filter(
+    const selectedLocation = uniqueResults.find(
       (result) => result.id === selectedLocationId
     );
     console.log('Locatia selectata:', selectedLocation);
-    dispatch(updateCounty(selectedLocation.judet));
-    dispatch(updatCity(selectedLocation.parent));
+    console.log('Judet:', removeAccents(selectedLocation?.judet));
+    console.log('Localitate:', removeAccents(selectedLocation?.parent));
+    if (selectedLocation.judet === null && selectedLocation.parent === null) {
+      dispatch(updateCounty(removeAccents(selectedLocation?.query)));
+    } else {
+      dispatch(updateCounty(removeAccents(selectedLocation?.judet)));
+      dispatch(updatCity(removeAccents(selectedLocation?.parent)));
+    }
     //searchInput.value = selectedLocation;
     //searchResultsContainer.classList.remove('searchResults-display');
     //searchResultsContainer.innerHTML = '';
