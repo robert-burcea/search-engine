@@ -41,6 +41,7 @@ export const Search = (props) => {
   const [advancedSearchQuerry, setAdvancedSearchQuerry] = React.useState('');
   const [data, setData] = React.useState([]);
   const [uniqueResults, setUniqueResults] = React.useState([]);
+  const [selectedLocation, setSelectedLocation] = React.useState('');
 
   React.useEffect(() => {
     if (country === 'România') {
@@ -87,38 +88,6 @@ export const Search = (props) => {
     dispatch(updateCounty(''));
   };
 
-  // Update county search
-  const updateCountySearch = (e) => {
-    dispatch(updateCounty(e.target.value));
-
-    /* updates the list of counties displayed based on user input.
-    / It filters the counties to show only those that match the search criteria provided by the user.
-    */
-
-    setCountiesList(
-      counties_list.filter((c) => {
-        return c.toLowerCase().includes(e.target.value.toLowerCase());
-      })
-    );
-  };
-
-  // Update city search
-  /*const updateCitySearch = (e) => {
-    dispatch(updatCity(e.target.value));
-
-    // updates the list of cities displayed based on user input for a specific county.
-    // It filters the cities to show only those that match the search criteria provided by the user.
-    counties.forEach((elem) => {
-      if (Object.keys(elem)[0] === county) {
-        setCitiesList(
-          elem[county].filter((city) => {
-            return city.toLowerCase().includes(e.target.value.toLowerCase());
-          })
-        );
-      }
-    });
-  }; */
-
   // Handle submit
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -160,9 +129,6 @@ export const Search = (props) => {
             setInputs(3);
           }
           break;
-        case 'city':
-          dispatch(updatCity(e.target.value));
-          break;
         default:
           break;
       }
@@ -193,21 +159,24 @@ export const Search = (props) => {
     const selectedLocation = uniqueResults.find(
       (result) => result.id === selectedLocationId
     );
+    console.log('State selectedLocation:', selectedLocation);
     console.log('Locatia selectata:', selectedLocation);
     console.log('Judet:', removeAccents(selectedLocation?.judet));
     console.log('Localitate:', removeAccents(selectedLocation?.parent));
     if (selectedLocation.judet === null && selectedLocation.parent === null) {
       dispatch(updateCounty(removeAccents(selectedLocation?.query)));
+      setSelectedLocation(selectedLocation.query);
     } else {
       dispatch(updateCounty(removeAccents(selectedLocation?.judet)));
       dispatch(updatCity(removeAccents(selectedLocation?.parent)));
+      setSelectedLocation(
+        `${selectedLocation.query}, ${selectedLocation.judet} ${selectedLocation.parent}`
+      );
     }
-    //searchInput.value = selectedLocation;
-    //searchResultsContainer.classList.remove('searchResults-display');
-    //searchResultsContainer.innerHTML = '';
   };
 
   const onChangeInput = (e) => {
+    setSelectedLocation(e.target.value);
     // Start the search after at least 3 letters
     if (e.target.value.length >= 3) {
       setAdvancedSearchQuerry(e.target.value);
@@ -333,6 +302,7 @@ export const Search = (props) => {
               <img src={location} alt="location icon" />
               <input
                 id="county"
+                value={'' || selectedLocation}
                 className="searchInp"
                 type="text"
                 placeholder="Județul"
@@ -346,7 +316,7 @@ export const Search = (props) => {
                 className={show ? 'searchResults' : 'hide searchResults'}
                 value={queries.county ? queries.county : ''}
               >
-                <li data="">Alege orasul</li>
+                <li data="">Alege locatia</li>
                 {uniqueResults?.map((result, index) => {
                   return (
                     <li key={index} id={result.id} onClick={handleLiClick}>
