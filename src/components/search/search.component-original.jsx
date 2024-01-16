@@ -10,14 +10,9 @@ import {
   updatCity
 } from '../../state/query.slice';
 import { getAllJobs, getTotalRomania } from '../../utils/get-data';
+import { advancedSearch } from '../../utils/advanced-search';
 import { updateAllJobs, updateTotalRomania } from '../../state/jobs.slice';
 import { counties } from './cityandcounty';
-import {
-  searchLocation,
-  searchMunicipiu,
-  removeDuplicates
-} from '../../utils/advanced-search';
-import { v4 as uuidv4 } from 'uuid';
 
 // Transform counties object to array
 const counties_list = counties.map((county) => {
@@ -38,9 +33,6 @@ export const Search = (props) => {
   // States
   const [countiesList, setCountiesList] = React.useState([counties_list]);
   const [citiesList, setCitiesList] = React.useState([]);
-  const [advancedSearchQuerry, setAdvancedSearchQuerry] = React.useState('');
-  const [data, setData] = React.useState([]);
-  const [uniqueResults, setUniqueResults] = React.useState([]);
 
   React.useEffect(() => {
     if (country === 'România') {
@@ -61,10 +53,6 @@ export const Search = (props) => {
     }
   }, [county]);
 
-  React.useEffect(() => {
-    getData();
-  }, []);
-
   // Functions
   // Update query search
   const updateQuerySearch = (e) => {
@@ -72,7 +60,7 @@ export const Search = (props) => {
   };
 
   // Update country search
-  const updateCountrySearch = (e) => {
+  const updateCrountrySearch = (e) => {
     if (e.target.value) {
       getTotalRomania().then((totalRomania) => {
         dispatch(updateTotalRomania(totalRomania));
@@ -103,11 +91,12 @@ export const Search = (props) => {
   };
 
   // Update city search
-  /*const updateCitySearch = (e) => {
+  const updateCitySearch = (e) => {
     dispatch(updatCity(e.target.value));
 
-    // updates the list of cities displayed based on user input for a specific county.
-    // It filters the cities to show only those that match the search criteria provided by the user.
+    /* updates the list of cities displayed based on user input for a specific county.
+    / It filters the cities to show only those that match the search criteria provided by the user.
+    */
     counties.forEach((elem) => {
       if (Object.keys(elem)[0] === county) {
         setCitiesList(
@@ -117,7 +106,7 @@ export const Search = (props) => {
         );
       }
     });
-  }; */
+  };
 
   // Handle submit
   const handleSubmit = (e) => {
@@ -167,68 +156,6 @@ export const Search = (props) => {
           break;
       }
     });
-  };
-
-  //ADVANCED SEARCH FUNCTIONS
-  //************************ */
-  async function getData() {
-    try {
-      const response = await fetch(`https://orase.peviitor.ro/`);
-      const data = await response.json();
-      console.log(data.judet);
-      setData(data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  }
-
-  const handleLiClick = (e) => {
-    // searchInput.innerHTML = "";
-    const selectedLocationId = e.target.id;
-    console.log('Id-ul locatiei:', selectedLocationId);
-    const selectedLocation = uniqueResults.filter(
-      (result) => result.id === selectedLocationId
-    );
-    console.log('Locatia selectata:', selectedLocation);
-    dispatch(updateCounty(selectedLocation.judet));
-    dispatch(updatCity(selectedLocation.parent));
-    //searchInput.value = selectedLocation;
-    //searchResultsContainer.classList.remove('searchResults-display');
-    //searchResultsContainer.innerHTML = '';
-  };
-
-  const onChangeInput = (e) => {
-    // Start the search after at least 3 letters
-    if (e.target.value.length >= 3) {
-      setAdvancedSearchQuerry(e.target.value);
-      const searchResult = searchLocation(advancedSearchQuerry, data.judet);
-      const searchResultBucuresti = searchMunicipiu(
-        e.target.value,
-        data.municipiu
-      );
-      // Check if there are any matching results
-      if (searchResult || searchResultBucuresti) {
-        const uniqueResults = removeDuplicates(searchResult);
-        uniqueResults.forEach((result) => {
-          result.id = uuidv4();
-        });
-        if (searchResultBucuresti) uniqueResults.push(...searchResultBucuresti);
-        setUniqueResults(uniqueResults);
-        // displayResults(uniqueResults, searchResultBucuresti);
-      } else {
-        // displayResults([]);
-      }
-    } else {
-      // Display a message when less than 3 letters are entered
-      // searchResultsContainer.classList.add('searchResults-display');
-      // searchResultsContainer.innerHTML =
-      // '<p>Introdu minim 3 litere ca sa poata functiona searchul</p>';
-    }
-    // Clear results when the search input is empty
-    if (e.target.value.length < 1) {
-      // searchResultsContainer.classList.remove('searchResults-display');
-      // searchResultsContainer.innerHTML = '';
-    }
   };
 
   // Handle click input
@@ -284,7 +211,7 @@ export const Search = (props) => {
                 placeholder="Țara"
                 autoComplete="off"
                 value={country}
-                onChange={updateCountrySearch}
+                onChange={updateCrountrySearch}
                 onClick={handleClickInput}
               />
 
@@ -323,29 +250,73 @@ export const Search = (props) => {
               <img src={location} alt="location icon" />
               <input
                 id="county"
-                className="searchInp"
                 type="text"
                 placeholder="Județul"
                 autoComplete="off"
-                onChange={onChangeInput}
+                onChange={updateCountySearch}
                 onClick={handleClickInput}
               />
               <ul
                 name="county"
                 ref={ref}
-                className={show ? 'searchResults' : 'hide searchResults'}
+                className={show ? '' : 'hide'}
                 value={queries.county ? queries.county : ''}
               >
-                <li data="">Alege orasul</li>
-                {uniqueResults?.map((result, index) => {
+                <li data="">Toate Județele</li>
+                {countiesList.map((county, index) => {
                   return (
-                    <li key={index} id={result.id} onClick={handleLiClick}>
-                      {result?.query}, {result?.judet} {result?.parent}
+                    <li key={index} data={county}>
+                      {county}
                     </li>
                   );
                 })}
               </ul>
 
+              <span
+                className="clear"
+                onClick={() => {
+                  dispatch(updateCountry(''));
+                  dispatch(updateCounty(''));
+                  dispatch(updatCity(''));
+                  setInputs(1);
+                }}
+              >
+                <svg
+                  focusable="false"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                </svg>
+              </span>
+            </div>
+          ) : null}
+          {country === 'România' && county && inputs === 3 ? (
+            <div className="city query">
+              <img src={location} alt="location icon" />
+              <input
+                id="city"
+                type="text"
+                placeholder="Localitatea"
+                autoComplete="off"
+                onChange={updateCitySearch}
+                onClick={handleClickInput}
+              />
+              <ul
+                name="city"
+                ref={ref}
+                className={show ? '' : 'hide'}
+                value={queries.city ? queries.city : ''}
+              >
+                <li data="">Toate Localitatile din {county}</li>
+                {citiesList.map((city, index) => {
+                  return (
+                    <li key={index} data={city}>
+                      {city}
+                    </li>
+                  );
+                })}
+              </ul>
               <span
                 className="clear"
                 onClick={() => {
